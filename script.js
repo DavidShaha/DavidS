@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // Helper: Smoothly scroll to a specific section index (exact 100dvh alignment)
+    // Helper: Smoothly scroll to a specific section index (exact Safari 100dvh alignment)
     const scrollToSectionIndex = (index) => {
         if (sectionList.length === 0) return;
         currentSectionIndex = ((index % sectionList.length) + sectionList.length) % sectionList.length;
@@ -67,18 +67,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             syncDotsToSection(currentSectionIndex);
 
+            const targetTop = Math.max(0, Math.round(targetSection.getBoundingClientRect().top + window.scrollY));
             window.scrollTo({
-                top: targetSection.offsetTop,
+                top: targetTop,
                 behavior: 'smooth'
             });
 
             programmaticScrollTimeout = setTimeout(() => {
                 isProgrammaticScrolling = false;
-            }, 1100);
+            }, 1150);
         }
     };
 
-    // 4. Vertical Scroll Listener (Updates active section & manual scroll progress)
+    // 4. Vertical Scroll & Safari Resize Listener (Updates active section & manual scroll progress)
     const updateVerticalScroll = () => {
         if (sectionList.length === 0) return;
 
@@ -87,7 +88,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let minDistance = Infinity;
 
         sectionList.forEach((section, index) => {
-            const sectionCenter = section.offsetTop + (section.offsetHeight / 2);
+            const rect = section.getBoundingClientRect();
+            const sectionCenter = window.scrollY + rect.top + (rect.height / 2);
             const distance = Math.abs(viewportCenter - sectionCenter);
             if (distance < minDistance) {
                 minDistance = distance;
@@ -111,6 +113,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.addEventListener('scroll', updateVerticalScroll, { passive: true });
+    window.addEventListener('resize', updateVerticalScroll, { passive: true });
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', updateVerticalScroll, { passive: true });
+    }
 
     // 5. 10-Second Auto Presentation Mode with Approaching Dot Radial Gold Fill
     const animateVerticalProgress = (timestamp) => {
@@ -366,6 +372,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (metricSpeed) metricSpeed.textContent = `${speedIndex}%`;
             if (metricAnnualHours) metricAnnualHours.textContent = `${annualHours.toLocaleString()} hrs / yr`;
             if (metricCycleReduction) metricCycleReduction.textContent = `-${cycleReduction}% Faster Close`;
+
+            // Update Q1-Q4 Cumulative Hours Reclaimed Bars
+            const maxAnnual = 1380; // Max scale at 300 emp + 500 inv
+            [1, 2, 3, 4].forEach(q => {
+                const qHrs = hoursSaved * (q * 3);
+                const qPct = Math.min(100, Math.max(8, Math.round((qHrs / maxAnnual) * 100)));
+                const valEl = document.getElementById(`q${q}-val`);
+                const barEl = document.getElementById(`q${q}-bar`);
+                if (valEl) valEl.textContent = `${qHrs}h`;
+                if (barEl) barEl.style.height = `${qPct}%`;
+            });
         };
 
         ['input', 'change'].forEach(evt => {
